@@ -1,0 +1,297 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Torn Marketplace</title>
+<style>
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: #10151c;
+  color: #edf1f5;
+  font-family: Arial, sans-serif;
+}
+header {
+  background: #19232e;
+  padding: 20px;
+  border-bottom: 1px solid #344250;
+}
+.logo { color: #e6b957; font-size: 24px; font-weight: bold; }
+header p { color: #aab6c2; font-size: 13px; }
+main { max-width: 950px; margin: auto; padding: 18px; }
+h2 { font-size: 19px; }
+input, select, textarea {
+  width: 100%;
+  padding: 13px;
+  margin: 7px 0 12px;
+  background: #202c38;
+  border: 1px solid #3b4b5a;
+  color: white;
+  border-radius: 7px;
+  font-size: 15px;
+}
+button {
+  background: #d9aa49;
+  color: #15191e;
+  border: 0;
+  border-radius: 7px;
+  padding: 13px 18px;
+  font-weight: bold;
+  cursor: pointer;
+}
+button:hover { background: #edc66e; }
+.search { margin: 18px 0; }
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit,minmax(220px,1fr));
+  gap: 14px;
+}
+.item {
+  background: #1b2631;
+  border: 1px solid #344250;
+  padding: 16px;
+  border-radius: 10px;
+}
+.item h3 { margin: 5px 0 12px; }
+.price { color: #e8bd62; font-size: 20px; font-weight: bold; }
+.seller {
+  color: #b4c0ca;
+  font-size: 13px;
+  line-height: 1.8;
+}
+.tag { color: #e4bd71; font-size: 12px; }
+.form-box {
+  background: #19232e;
+  border: 1px solid #344250;
+  border-radius: 10px;
+  padding: 18px;
+  margin-top: 30px;
+}
+.empty { color: #aab6c2; padding: 25px 0; }
+footer {
+  text-align: center;
+  color: #8794a1;
+  padding: 30px;
+  font-size: 12px;
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">⚔ TORN MARKETPLACE</div>
+  <p>Buyers meet sellers. Trade your way.</p>
+</header>
+
+<main>
+  <h2>Marketplace</h2>
+  <p style="color:#aab6c2">
+    Browse items listed by fellow Torn players.
+  </p>
+
+  <div class="search">
+    <input id="search" placeholder="Search items or sellers...">
+    <select id="category">
+      <option value="">All categories</option>
+      <option>Weapons</option>
+      <option>Armour</option>
+      <option>Drugs</option>
+      <option>Medical</option>
+      <option>Jewelry</option>
+      <option>Other</option>
+    </select>
+  </div>
+
+  <div id="items" class="grid"></div>
+
+  <section class="form-box">
+    <h2>＋ List an item for sale</h2>
+    <p style="color:#aab6c2;font-size:13px">
+      Enter your item and Torn seller details.
+    </p>
+
+    <form id="listingForm">
+      <label>Item name</label>
+      <input id="itemName" required maxlength="80"
+        placeholder="Enter item name">
+
+      <label>Category</label>
+      <select id="itemCategory" required>
+        <option value="">Choose category</option>
+        <option>Weapons</option>
+        <option>Armour</option>
+        <option>Drugs</option>
+        <option>Medical</option>
+        <option>Jewelry</option>
+        <option>Other</option>
+      </select>
+
+      <label>Asking price ($)</label>
+      <input id="price" type="number" min="1"
+        step="1" required placeholder="1000000">
+
+      <label>Quantity</label>
+      <input id="quantity" type="number" min="1"
+        max="9999" value="1" required>
+
+      <label>Additional details</label>
+      <textarea id="description" maxlength="500"
+        placeholder="Condition, details, etc."></textarea>
+
+      <label>Your Torn username</label>
+      <input id="username" required maxlength="30"
+        placeholder="Your Torn username">
+
+      <label>Your Torn player ID</label>
+      <input id="playerId" type="number" min="1"
+        required placeholder="Your Torn ID">
+
+      <button type="submit">Publish listing</button>
+    </form>
+  </section>
+</main>
+
+<footer>
+  Torn Marketplace · Community trading directory
+</footer>
+
+<script>
+const storageKey = "torn_marketplace_listings_v1";
+
+const samples = [
+  {
+    name:"Sample Weapon",
+    category:"Weapons",
+    price:2500000,
+    quantity:1,
+    description:"Example listing. Replace with a real listing.",
+    username:"DemoSeller",
+    playerId:"123456",
+    demo:true
+  },
+  {
+    name:"Sample Medical Item",
+    category:"Medical",
+    price:500000,
+    quantity:5,
+    description:"Example listing for demonstration.",
+    username:"DemoPlayer",
+    playerId:"654321",
+    demo:true
+  }
+];
+
+let listings;
+try {
+  const saved = localStorage.getItem(storageKey);
+  listings = saved ? JSON.parse(saved) : samples;
+  if (!Array.isArray(listings)) listings = samples;
+} catch {
+  listings = samples;
+}
+
+const items = document.getElementById("items");
+const search = document.getElementById("search");
+const category = document.getElementById("category");
+
+function save() {
+  localStorage.setItem(storageKey, JSON.stringify(listings));
+}
+
+function safe(value) {
+  return String(value).replace(/[&<>"']/g, c => ({
+    "&":"&amp;", "<":"&lt;", ">":"&gt;",
+    '"':"&quot;", "'":"&#39;"
+  })[c]);
+}
+
+function render() {
+  const term = search.value.toLowerCase();
+  const selected = category.value;
+
+  const filtered = listings.filter(item =>
+    !item.sold &&
+    (!selected || item.category === selected) &&
+    (item.name.toLowerCase().includes(term) ||
+     item.username.toLowerCase().includes(term))
+  );
+
+  items.innerHTML = "";
+
+  if (!filtered.length) {
+    items.innerHTML =
+      '<p class="empty">No items found. Try another search.</p>';
+    return;
+  }
+
+  filtered.forEach(item => {
+    const card = document.createElement("div");
+    card.className = "item";
+    card.innerHTML = `
+      <span class="tag">${safe(item.category)}</span>
+      <h3>${safe(item.name)}</h3>
+      <div class="price">$${Number(item.price).toLocaleString("en-US")}</div>
+      <p class="seller">
+        Quantity: ${safe(item.quantity)}<br>
+        ${safe(item.description || "No extra details")}<br>
+        Seller: <strong>${safe(item.username)}</strong><br>
+        Torn ID: <strong>${safe(item.playerId)}</strong>
+      </p>
+      <button type="button" class="copy">Copy seller ID</button>
+    `;
+    card.querySelector(".copy").addEventListener("click", () => {
+      if (navigator.clipboard) {
+        navigator.clipboard.writeText(String(item.playerId))
+          .then(() => alert("Seller ID copied!"))
+          .catch(() => alert("Seller ID: " + item.playerId));
+      } else {
+        alert("Seller ID: " + item.playerId);
+      }
+    });
+    items.appendChild(card);
+  });
+}
+
+search.addEventListener("input", render);
+category.addEventListener("change", render);
+
+document.getElementById("listingForm")
+.addEventListener("submit", function(event) {
+  event.preventDefault();
+
+  const entry = {
+    name: document.getElementById("itemName").value.trim(),
+    category: document.getElementById("itemCategory").value,
+    price: Number(document.getElementById("price").value),
+    quantity: Number(document.getElementById("quantity").value),
+    description: document.getElementById("description").value.trim(),
+    username: document.getElementById("username").value.trim(),
+    playerId: document.getElementById("playerId").value,
+    demo:false,
+    sold:false
+  };
+
+  if (!entry.name || !entry.category ||
+      !entry.username || !entry.playerId ||
+      !Number.isSafeInteger(entry.price) || entry.price < 1 ||
+      !Number.isSafeInteger(entry.quantity) ||
+      entry.quantity < 1 || entry.quantity > 9999 ||
+      !/^\d+$/.test(entry.playerId)) {
+    alert("Please check all listing details.");
+    return;
+  }
+
+  listings.unshift(entry);
+  save();
+  render();
+  this.reset();
+  alert("Your listing was added on this device!");
+  window.scrollTo({top:0,behavior:"smooth"});
+});
+
+render();
+</script>
+</body>
+</html>
